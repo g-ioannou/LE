@@ -1,0 +1,24 @@
+#general .yaml file
+
+spark:
+  spark.driver.bindAddress: localhost
+  spark.ui.port: 4040
+
+parameters:
+  subgraph_depth: 2
+  weight_thresh: 80
+  cosine_thresh: 80
+
+input:
+  name: Hamsterster
+  delimiter: ","
+  nodes:
+    file_path: data/input_graphs/Hamsterster/nodes.csv
+    has_header: True
+    vector_size: 1
+    delimiter: ","
+  edges:
+    file_path: data/input_graphs/Hamsterster/edges.csv
+    has_header: True
+    has_weights: False
+    delimiter: ","
