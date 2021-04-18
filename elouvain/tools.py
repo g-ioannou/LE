@@ -6,6 +6,23 @@ import networkx as nx
 import pandas
 
 
+
+def merge_partitions(partitionA: dict, partitionB: dict) -> dict:
+    """
+    Returns a partition after updating partitionA based on partitionB.
+
+    Args:
+        partitionA(dict):
+    Returns:
+    """
+
+    new_partition = partitionA.copy()
+    for node in partitionB:
+        new_partition[node] = partitionB[node]
+
+    return new_partition
+
+
 def get_random_node(Graph: Graph) -> int:
     """
     Return a random node from the Graph
@@ -49,64 +66,15 @@ def get_partition_using_metrics(G: nx.Graph, weight_thresh: float, cosine_thresh
             edge_weight = G[node][neighbor]["weight"]
             cosine_sim = G[node][neighbor]["cosine_sim"]
             if edge_weight >= weight_thresh or cosine_sim >= cosine_thresh:
-                partition = _move_neighbors_to_target(partition, node, neighbor)
+                partition = __move_neighbors_to_target(partition, node, neighbor)
                 Q_old = community.modularity(partition, G)
             else:
-                Q_new = _calculate_Q_new(G, partition, neighbor, node)
+                Q_new = __calculate_Q_new(G, partition, neighbor, node)
                 if Q_new > Q_old:
-                    partition = _move_neighbors_to_target(partition, node, neighbor)
+                    partition = __move_neighbors_to_target(partition, node, neighbor)
                     Q_old = Q_new
 
-    _add_id_as_attribute(partition, G)
-    return partition
-
-
-def _add_id_as_attribute(partition: dict, G: nx.Graph):
-    """
-    Simply adds the node ID as a node attribute.
-
-    Args:
-        partition(dict):
-        G(nx.Graph):
-    """
-    for node in partition:
-        attrs = {}
-        attrs[node] = {"id": node, "partition": partition[node]}
-        nx.set_node_attributes(G, attrs)
-
-
-def _calculate_Q_new(G: nx.Graph, partition: dict, node: int, target: int) -> float:
-    """
-    Returns the new modularity after moving 'node' to the partition of 'target'
-
-    Args:
-        G(nx.Graph):
-        partition(dict):
-        node(int): Node to be moved.
-        target(int):
-    """
-    temp_partition = partition.copy()
-    temp_partition[node] = temp_partition[target]
-    return community.modularity(temp_partition, G)
-
-
-def _move_neighbors_to_target(partition: dict, target: int, neighbor: int) -> dict:
-    """
-    Moves all nodes that belong in the same partition as 'neighbor' to the partition of 'target'
-
-    Args:
-        G(nx.Graph):
-        partition(dict): Current iteration's partition.
-        target(int): The node's partition all 'neighbor' nodes will be moved to.
-        neighbor(int):
-
-    """
-    nodes_in_neighbors_community = [
-        node_key for node_key, node_partition in partition.items() if node_partition == neighbor
-    ]
-    for contained_node in nodes_in_neighbors_community:
-        partition[contained_node] = partition[target]
-
+    __add_id_as_attribute(partition, G)
     return partition
 
 
@@ -147,4 +115,55 @@ def to_communities(G: Graph, subgraph: nx.Graph, partition: dict) -> [DataFrame,
         .drop("src_dst")
     )
 
+    print(new_edges_df.count())
+
     return new_edges_df, new_nodes_df
+
+
+def __add_id_as_attribute(partition: dict, G: nx.Graph):
+    """
+    Simply adds the node ID as a node attribute.
+
+    Args:
+        partition(dict):
+        G(nx.Graph):
+    """
+    for node in partition:
+        attrs = {}
+        attrs[node] = {"id": node, "partition": partition[node]}
+        nx.set_node_attributes(G, attrs)
+
+
+def __calculate_Q_new(G: nx.Graph, partition: dict, node: int, target: int) -> float:
+    """
+    Returns the new modularity after moving 'node' to the partition of 'target'
+
+    Args:
+        G(nx.Graph):
+        partition(dict):
+        node(int): Node to be moved.
+        target(int):
+    """
+    temp_partition = partition.copy()
+    temp_partition[node] = temp_partition[target]
+    return community.modularity(temp_partition, G)
+
+
+def __move_neighbors_to_target(partition: dict, target: int, neighbor: int) -> dict:
+    """
+    Moves all nodes that belong in the same partition as 'neighbor' to the partition of 'target'
+
+    Args:
+        G(nx.Graph):
+        partition(dict): Current iteration's partition.
+        target(int): The node's partition all 'neighbor' nodes will be moved to.
+        neighbor(int):
+
+    """
+    nodes_in_neighbors_community = [
+        node_key for node_key, node_partition in partition.items() if node_partition == neighbor
+    ]
+    for contained_node in nodes_in_neighbors_community:
+        partition[contained_node] = partition[target]
+
+    return partition

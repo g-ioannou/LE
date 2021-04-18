@@ -1,7 +1,7 @@
 # from logs.logger import logger
 from elouvain.elouvain_spark import *  # pylint:disable= unused-wildcard-import
 
-from elouvain.tools import *  # pylint:disable= unused-wildcard-import
+import elouvain.tools as tools
 from elouvain.obj import Graph
 
 
@@ -15,14 +15,25 @@ def extended_louvain(
     G = first_iteration_graph
 
     # while True:
-    subgraph_nodes, subgraph_edges = G.induced_subgraph(starting_node=get_random_node(G), depth=subgraph_depth)
 
-    subgraph = Graph(subgraph_nodes, subgraph_edges).to_nx()
+    subgraph = G.induced_subgraph(starting_node=tools.get_random_node(G),
+                                  depth=subgraph_depth)
 
-    subgraph_partition = get_partition_using_metrics(
-        G=subgraph,
+    # sub-loop
+    new_subgraph_partition = tools.get_partition_using_metrics(
+        G=subgraph.to_nx(),
         weight_thresh=weight_threshold,
         cosine_thresh=cosine_threshold,
-    )
+    )  # end of subloop
 
-    print(subgraph_partition)
+    subgraph.update_based_on_partition(new_subgraph_partition)
+
+    Q_old = G.get_modularity()
+    Q_new = G.get_modularity(new_subgraph_partition)
+
+    hello = x
+
+    # if Q_old < Q_new:
+    #     G.update_based_on_subgraph()
+    # # else:
+    # #     break
