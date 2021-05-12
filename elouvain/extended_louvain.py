@@ -16,8 +16,7 @@ def extended_louvain(
 
     # while True:
 
-    subgraph = G.induced_subgraph(starting_node=tools.get_random_node(G),
-                                  depth=subgraph_depth)
+    subgraph = G.induced_subgraph(starting_node=tools.get_random_node(G), depth=subgraph_depth)
 
     # sub-loop
     new_subgraph_partition = tools.get_partition_using_metrics(
@@ -30,8 +29,6 @@ def extended_louvain(
 
     Q_old = G.get_modularity()
     Q_new = G.get_modularity(new_subgraph_partition)
-
-    hello = x
 
     # if Q_old < Q_new:
     #     G.update_based_on_subgraph()

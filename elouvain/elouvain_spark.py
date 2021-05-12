@@ -1,3 +1,4 @@
+from networkx.classes.function import nodes
 from configs.config import config
 
 # from logs.logger import logger
@@ -5,14 +6,14 @@ from configs.config import config
 from pyspark.sql import SparkSession, SQLContext, DataFrame, Row, Window
 
 from pyspark.sql.types import IntegerType, StringType, FloatType, ArrayType, StructType, StructField
-from pyspark.ml.linalg import VectorUDT
+from pyspark.ml.linalg import VectorUDT, Vectors
 import pyspark.sql.functions as F
+import pyspark.ml.functions as MLF
 
-from pyspark.ml.feature import Tokenizer, StopWordsRemover, Word2Vec
+from pyspark.ml.feature import Tokenizer, StopWordsRemover, Word2Vec, VectorAssembler
 
 # logger.info("Initializing Spark")
 spark = SparkSession.builder.getOrCreate()
-config = config.spark_conf
 
 
 class SparkTools:
@@ -37,60 +38,42 @@ class SparkTools:
     @staticmethod
     def calculate_hamsterster_vectors(nodes_df: DataFrame) -> DataFrame:
         """
-        Transforms hamsterster features to vectors
+        Transforms given features to vectors
 
         Returns:
             hamsterster_nodes(pyspark.sql.DataFrame)
 
         """
-        hamsterster_nodes = (
-            nodes_df.withColumn("Favorite_acitvity", F.regexp_replace("Favorite_activity", ",", ""))
-            .select(
-                F.concat_ws(" and ", nodes_df.Favorite_activity, nodes_df.Favorite_food).alias("col1"),
-                "id",
-                "partition",
+        id_col = config.input_conf["nodes"]["id_column_name"]
+        features = config.input_conf["nodes"]["features"]
+        cols = id_col + features
+
+        nodes_df = nodes_df.select([col for col in cols]).withColumnRenamed(id_col[0], "id")
+
+        for feature in features:
+
+            spec = Window.partitionBy().orderBy(feature)
+            feature_values = (
+                nodes_df.select(feature)
+                .distinct()
+                .withColumn(str(feature + "_value"), F.row_number().over(spec))
+                .withColumnRenamed(feature, str(feature + "_temp"))
             )
-            .withColumn("col1", F.regexp_replace("col1", "Singapore,  ", ""))
+            
+            nodes_df = (
+                nodes_df.join(feature_values, on=nodes_df[feature] == feature_values[str(feature + "_temp")])
+                .drop(feature)
+                .drop(str(feature + "_temp"))
+            )
+
+        
+        assembler = VectorAssembler(
+            inputCols=[col for col in nodes_df.columns if col != 'id'],
+            outputCol="vector",
         )
 
-        tokenizer = Tokenizer(inputCol="col1", outputCol="words")
-        hamsterster_nodes = tokenizer.transform(hamsterster_nodes).drop("col1")
+        nodes_df = assembler.transform(nodes_df)
+        nodes_df = nodes_df.select([col for col in nodes_df.columns if "_value" not in col])
+        
+        return nodes_df
 
-        stopWordsRemover = StopWordsRemover(inputCol="words", outputCol="words_filtered")
-        hamsterster_nodes = stopWordsRemover.transform(hamsterster_nodes).drop("words")
-
-        word2vec = Word2Vec(vectorSize=1, minCount=1, seed=0, inputCol="words_filtered", outputCol="vector")
-        model = word2vec.fit(hamsterster_nodes)
-        hamsterster_nodes = model.transform(hamsterster_nodes).drop("words_filtered")
-
-        return hamsterster_nodes
-
-    # TODO calculate vectors for any given graph
-    # def calculate_vectors(self, nodes_df: DataFrame):
-    #     """
-    #     Calculates feature vectors
-
-    #     Args:
-    #         nodes_df(pyspark.sql.DataFrame):
-    #     """
-    #     print("ok")
-
-    @staticmethod
-    def clean_hamsterster_df(nodes_df):
-
-        cols_to_drop = [
-            "Name",
-            "Coloring",
-            "Joined",
-            "Species",
-            "Gender",
-            "Birthday",
-            "Age",
-            "Hometown",
-            "Favorite_toy",
-        ]
-
-        nodes_df = nodes_df.drop(*cols_to_drop).withColumnRenamed("ID", "id")
-
-    # TODO clean generic dataframe
-    # def clean_df():

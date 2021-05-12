@@ -6,7 +6,6 @@ import networkx as nx
 import pandas
 
 
-
 def merge_partitions(partitionA: dict, partitionB: dict) -> dict:
     """
     Returns a partition after updating partitionA based on partitionB.

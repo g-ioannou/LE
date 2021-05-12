@@ -11,6 +11,7 @@ class _Config:
         self.spark_conf = self.all_config["spark"]
         self.input_conf = self.all_config["input"]
         self.parameters = self.all_config['parameters']
+        
         # self.output_conf = self.config["output"]
 
 

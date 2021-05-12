@@ -17,6 +17,15 @@ input:
     has_header: True
     vector_size: 1
     delimiter: ","
+    id_column_name: 
+      - ID
+    features:
+      - Species
+      - Coloring
+      #- Hometown
+      #- Favorite_toy
+      #- Favorite_activity
+      #- Favorite_food
   edges:
     file_path: data/input_graphs/Hamsterster/edges.csv
     has_header: True
