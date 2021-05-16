@@ -8,7 +8,6 @@ from configs.config import config
 
 
 class Metrics:
-
     @staticmethod
     def calculate_cosine(Graph: Graph, features: list) -> DataFrame:
         """
@@ -21,7 +20,7 @@ class Metrics:
 
         """
         number_of_features = len(features)
-
+        print(Graph.edges.rdd.getNumPartitions())
         edges_vectors_comb = (
             Graph.edges.join(Graph.nodes, on=Graph.edges.src == Graph.nodes.id)
             .drop("id")
@@ -29,6 +28,7 @@ class Metrics:
             .join(Graph.nodes, on=Graph.edges.dst == Graph.nodes.id)
             .drop("id")
             .withColumnRenamed("vector", "vector_dst")
+            .repartition(4, "src")
         )
 
         edges_vectors_comb = edges_vectors_comb.withColumn(
@@ -47,8 +47,9 @@ class Metrics:
             )
             .withColumn("dot", lit(0))
             .withColumn("norm_src", lit(0))
-            .withColumn("norm_dst", lit(0))# TODO This should work for config.nodes.input_columns
+            .withColumn("norm_dst", lit(0))  # TODO This should work for config.nodes.input_columns
         )
+        print(edges_vectors_comb.rdd.getNumPartitions())
 
         # calculate dot product
         for feature_index in range(0, number_of_features):
