@@ -2,21 +2,22 @@
 
 spark:
   config:
-     spark.driver.bindAddress: localhost
-     spark.ui.port: 4040
-     spark.driver.memory: "12g"
-     spark.driver.memoryOverhead: 4096
-     spark.sql.shuffle.partitions: 4
-     spark.default.parallelism: 4
-     spark.master: "local[*]"
-     
+    spark.driver.bindAddress: localhost
+    spark.ui.port: 4040
+    spark.driver.memory: "12g"
+    spark.driver.memoryOverhead: 4096
+    spark.sql.shuffle.partitions: 8
+    spark.default.parallelism: 8
+    spark.master: "local[4]"
+    spark.serializer: "org.apache.spark.serializer.KryoSerializer"
+
   dirs:
-     temp_folder: "data/temp/"
+    temp_folder: "data/temp/"
 
 parameters:
-  subgraph_depth: 2
-  weight_thresh: 80
-  cosine_thresh: 80
+  subgraph_depth: 3
+  weight_thresh: 0.6
+  cosine_thresh: 0.6
 
 input:
   name: Hamsterster
@@ -26,7 +27,7 @@ input:
     has_header: True
     vector_size: 1
     delimiter: ","
-    id_column_name: 
+    id_column_name:
       - ID
     features:
       - Species

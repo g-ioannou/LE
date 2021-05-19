@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from networkx.classes.function import nodes
 from pyspark.context import SparkContext
 from configs.config import config
@@ -35,7 +37,7 @@ class SparkTools:
         self.spark = SparkSession.builder.config(conf=self.conf).getOrCreate()
         self.spark.sparkContext.setLogLevel("ERROR")
 
-    def calculate_hamsterster_vectors(self, nodes_df: DataFrame) -> DataFrame:
+    def calculate_vectors(self, nodes_df: DataFrame) -> DataFrame:
         """
         Transforms given features to vectors
 
@@ -45,7 +47,8 @@ class SparkTools:
         """
 
         cols = self.id_col + ["partition"] + self.features_list
-        nodes_df = nodes_df.select([col for col in cols]).withColumnRenamed(self.id_col[0], "id")
+
+        nodes_df = nodes_df.select([col for col in cols]).withColumnRenamed(self.id_col[0], "id").cache()
 
         for feature in self.features_list:
 
@@ -55,25 +58,28 @@ class SparkTools:
                 .distinct()
                 .withColumn(str(feature + "_value"), F.row_number().over(spec))
                 .withColumnRenamed(feature, str(feature + "_temp"))
+                .coalesce(8)
+                .cache()
             )
-            nodes_df = self.reload_df(nodes_df,"nodes_df",4,[feature])
+            # nodes_df = self.reload_df(nodes_df, "nodes_df", 4, [feature]).sortWithinPartitions(feature)
             nodes_df = (
                 nodes_df.join(feature_values, on=nodes_df[feature] == feature_values[str(feature + "_temp")])
                 .drop(feature)
                 .drop(str(feature + "_temp"))
+                .coalesce(8)
+                .cache()
             )
+
             
-            # nodes_df.cache()
+        
+        # assembler = VectorAssembler(
+        #     inputCols=[col for col in nodes_df.columns if col != "id"],
+        #     outputCol="vector",
+        # )
+        # nodes_df = assembler.transform(nodes_df).cache()
 
-        assembler = VectorAssembler(
-            inputCols=[col for col in nodes_df.columns if col != "id"],
-            outputCol="vector",
-        )
-
-        nodes_df = assembler.transform(nodes_df).cache()
-        nodes_df = nodes_df.select([col for col in nodes_df.columns if "_value" not in col])
-        nodes_df = self.reload_df(nodes_df,"nodes_df",4,["id"])
-        # nodes_df = self.clean_and_reload_df(nodes_df, "nodes_df")
+        # nodes_df = nodes_df.select([col for col in nodes_df.columns if "_value" not in col])
+        
 
         return nodes_df
 
@@ -119,13 +125,13 @@ class SparkTools:
         """
 
         if num_partitions and not partition_cols:
-            df.repartition(num_partitions).write.parquet(parquet_path)
+            df.coalesce(num_partitions).write.parquet(parquet_path)
         elif num_partitions and partition_cols:
             df.repartition(num_partitions, *partition_cols).write.parquet(parquet_path)
         elif partition_cols and not num_partitions:
             df.repartition(*partition_cols).write.parquet(parquet_path)
         else:
-            df.repartition(1).write.parquet(parquet_path)
+            df.coalesce(1).write.parquet(parquet_path)
 
         if ".tmp" in parquet_path:
             parquet_path = parquet_path[:-4]
@@ -164,3 +170,19 @@ class SparkTools:
 
     def __clear_tmp_folder(self):
         shutil.rmtree(self.project_path + self.temp_df_folder)
+
+    def get_cached_data(self):
+        [
+            print(
+                {
+                    "name": s.name(),
+                    "numPartitions": s.numPartitions(),
+                    "numCachedPartitions": s.numCachedPartitions(),
+                    "id": s.id(),
+                    "isCached": s.isCached(),
+                }
+            )
+            for s in self.spark.sparkContext._jsc.sc().getRDDStorageInfo()
+        ]
+        for s in self.spark.sparkContext._jsc.sc().getRDDStorageInfo():
+            print(s.id)
